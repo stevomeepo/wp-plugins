@@ -102,7 +102,7 @@ function modify_add_to_cart_text($text, $product) {
     $product_discontinued = get_post_meta($product->get_id(), '_discontinued', true);
     
     if ($product_discontinued === 'yes' && $product->is_in_stock()) {
-        return __('Buy Remaining Stock', 'woocommerce');
+        return __('Add to Cart', 'woocommerce');
     }
     
     return $text;
