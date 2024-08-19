@@ -58,6 +58,7 @@ function display_discontinued_status() {
         echo '<div class="discontinued-variations">';
         foreach ($variations as $variation) {
             $variation_id = $variation['variation_id'];
+            $variation_obj = wc_get_product($variation_id);
             $discontinued = get_post_meta($variation_id, '_variation_discontinued', true);
             if ($discontinued === 'yes') {
                 $attributes = $variation['attributes'];
@@ -65,7 +66,10 @@ function display_discontinued_status() {
                     $taxonomy = str_replace('attribute_', '', $key);
                     $term = get_term_by('slug', $value, $taxonomy);
                     if ($term) {
-                        echo '<span class="discontinued">' . $term->name . ': Discontinued - Limited Stock Available</span>';
+                        $stock_message = ($variation_obj->managing_stock() && $variation_obj->get_stock_quantity() <= 0)
+                            ? 'Discontinued'
+                            : 'Discontinued - Limited Stock Available';
+                        echo '<span class="discontinued">' . $term->name . ': ' . $stock_message . '</span>';
                     }
                 }
             }
