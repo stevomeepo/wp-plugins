@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: Refined WooCommerce Product and Variation Clearance Status
-Description: Adds improved clearance status for WooCommerce products and their variations. Includes On Sale Price Change
-Version: 2.0
+Description: Adds improved clearance status for WooCommerce products and their variations.
+Version: 2.1
 Author: Stephen Huang
 */
 
@@ -45,81 +45,8 @@ function save_variation_clearance_field($variation_id) {
 }
 add_action('woocommerce_save_product_variation', 'save_variation_clearance_field', 10, 1);
 
-// Add On Sale checkbox to main product
-function add_product_sale_field() {
-    woocommerce_wp_checkbox(
-        array(
-            'id' => '_on_sale',
-            'label' => 'On Sale',
-            'description' => 'Check if this entire product is on sale'
-        )
-    );
-    woocommerce_wp_text_input(
-        array(
-            'id' => '_sale_price',
-            'label' => 'Sale Price',
-            'description' => 'Enter the sale price for this product',
-            'type' => 'number',
-            'custom_attributes' => array(
-                'step' => 'any',
-                'min' => '0'
-            )
-        )
-    );
-}
-add_action('woocommerce_product_options_pricing', 'add_product_sale_field');
-
-// Save On Sale status for main product
-function save_product_sale_field($product_id) {
-    $on_sale = isset($_POST['_on_sale']) ? 'yes' : 'no';
-    update_post_meta($product_id, '_on_sale', $on_sale);
-    
-    if (isset($_POST['_sale_price'])) {
-        update_post_meta($product_id, '_sale_price', sanitize_text_field($_POST['_sale_price']));
-    }
-}
-add_action('woocommerce_process_product_meta', 'save_product_sale_field');
-
-// Add On Sale checkbox to variation options
-function add_variation_sale_field($loop, $variation_data, $variation) {
-    woocommerce_wp_checkbox(
-        array(
-            'id' => '_variation_on_sale[' . $variation->ID . ']',
-            'label' => 'On Sale',
-            'description' => 'Check if this variation is on sale',
-            'value' => get_post_meta($variation->ID, '_variation_on_sale', true),
-            'class' => 'variation-sale-checkbox'
-        )
-    );
-    woocommerce_wp_text_input(
-        array(
-            'id' => '_variation_sale_price[' . $variation->ID . ']',
-            'label' => 'Sale Price',
-            'description' => 'Enter the sale price for this variation',
-            'value' => get_post_meta($variation->ID, '_variation_sale_price', true),
-            'type' => 'number',
-            'custom_attributes' => array(
-                'step' => 'any',
-                'min' => '0'
-            )
-        )
-    );
-}
-add_action('woocommerce_product_after_variable_attributes', 'add_variation_sale_field', 10, 3);
-
-// Save On Sale status for variations
-function save_variation_sale_field($variation_id) {
-    $on_sale = isset($_POST['_variation_on_sale'][$variation_id]) ? 'yes' : 'no';
-    update_post_meta($variation_id, '_variation_on_sale', $on_sale);
-    
-    if (isset($_POST['_variation_sale_price'][$variation_id])) {
-        update_post_meta($variation_id, '_variation_sale_price', sanitize_text_field($_POST['_variation_sale_price'][$variation_id]));
-    }
-}
-add_action('woocommerce_save_product_variation', 'save_variation_sale_field', 10, 1);
-
-// Remove the sale banner from the display_clearance_and_sale_status function
-function display_clearance_and_sale_status() {
+// Display clearance status
+function display_clearance_status() {
     global $product;
 
     $product_clearance = get_post_meta($product->get_id(), '_clearance', true);
@@ -130,7 +57,7 @@ function display_clearance_and_sale_status() {
 
     if ($product->is_type('variable')) {
         $variations = $product->get_available_variations();
-        echo '<div class="clearance-sale-variations">';
+        echo '<div class="clearance-variations">';
         foreach ($variations as $variation) {
             $variation_id = $variation['variation_id'];
             $variation_obj = wc_get_product($variation_id);
@@ -153,40 +80,10 @@ function display_clearance_and_sale_status() {
         echo '</div>';
     }
 }
-add_action('woocommerce_single_product_summary', 'display_clearance_and_sale_status', 5);
+add_action('woocommerce_single_product_summary', 'display_clearance_status', 5);
 
-// Add a filter to modify the product price html
-function custom_price_html($price_html, $product) {
-    $product_on_sale = get_post_meta($product->get_id(), '_on_sale', true);
-    
-    if ($product_on_sale === 'yes') {
-        $regular_price = $product->get_regular_price();
-        $sale_price = $product->get_price(); // This will now return the sale price
-        
-        $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
-    }
-    
-    return $price_html;
-}
-add_filter('woocommerce_get_price_html', 'custom_price_html', 10, 2);
-
-// Add a filter to modify the variation price html
-function custom_variation_price_html($price_html, $product, $variation) {
-    $variation_on_sale = get_post_meta($variation->get_id(), '_variation_on_sale', true);
-    
-    if ($variation_on_sale === 'yes') {
-        $regular_price = $variation->get_regular_price();
-        $sale_price = $variation->get_price(); // This will now return the sale price
-        $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
-    }
-    
-    return $price_html;
-}
-add_filter('woocommerce_variation_price_html', 'custom_variation_price_html', 10, 3);
-add_filter('woocommerce_variation_sale_price_html', 'custom_variation_price_html', 10, 3);
-
-// Update styles to fix the orange line issue
-function add_clearance_and_sale_styles() {
+// Update styles
+function add_clearance_styles() {
     echo '<style>
     .clearance {
         background-color: #90EE90;
@@ -205,37 +102,17 @@ function add_clearance_and_sale_styles() {
         font-weight: bold;
         margin-bottom: 20px;
     }
-    .clearance-sale-variations {
+    .clearance-variations {
         margin-bottom: 20px;
     }
-    .variation-clearance-checkbox, .variation-sale-checkbox {
+    .variation-clearance-checkbox {
         margin-right: 10px;
-    }
-    del {
-        color: #777;
-        text-decoration: line-through;
-        font-weight: normal;
-        margin-right: 5px;
-    }
-    ins {
-        color: #dc3545;
-        text-decoration: none;
-        font-weight: bold;
-        background: none;
-    }
-    .price del::before,
-    .price del::after {
-        display: none !important;
-    }
-    .price ins::before,
-    .price ins::after {
-        display: none !important;
     }
     </style>';
 }
-add_action('wp_head', 'add_clearance_and_sale_styles');
+add_action('wp_head', 'add_clearance_styles');
 
-// Replace the hide_discontinued_variations function with this new one
+// Manage clearance variations
 function manage_clearance_variations($is_available, $variation) {
     $product_clearance = get_post_meta($variation->get_parent_id(), '_clearance', true);
     $variation_clearance = get_post_meta($variation->get_id(), '_variation_clearance', true);
@@ -247,7 +124,7 @@ function manage_clearance_variations($is_available, $variation) {
 }
 add_filter('woocommerce_variation_is_active', 'manage_clearance_variations', 10, 2);
 
-// Add a new function to modify the "Add to Cart" button text for clearance products
+// Modify the "Add to Cart" button text for clearance products
 function modify_add_to_cart_text($text, $product) {
     $product_clearance = get_post_meta($product->get_id(), '_clearance', true);
     
@@ -259,51 +136,3 @@ function modify_add_to_cart_text($text, $product) {
 }
 add_filter('woocommerce_product_single_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
 add_filter('woocommerce_product_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
-
-// Modify the product price for simple products
-function modify_product_price($price, $product) {
-    $product_on_sale = get_post_meta($product->get_id(), '_on_sale', true);
-    
-    if ($product_on_sale === 'yes') {
-        $sale_price = get_post_meta($product->get_id(), '_sale_price', true);
-        if ($sale_price) {
-            return $sale_price;
-        }
-    }
-    
-    return $price;
-}
-add_filter('woocommerce_product_get_price', 'modify_product_price', 10, 2);
-add_filter('woocommerce_product_get_regular_price', 'modify_product_price', 10, 2);
-
-// Modify the variation price
-function modify_variation_price($price, $variation, $product) {
-    $variation_on_sale = get_post_meta($variation->get_id(), '_variation_on_sale', true);
-    
-    if ($variation_on_sale === 'yes') {
-        $sale_price = get_post_meta($variation->get_id(), '_variation_sale_price', true);
-        if ($sale_price) {
-            return $sale_price;
-        }
-    }
-    
-    return $price;
-}
-add_filter('woocommerce_product_variation_get_price', 'modify_variation_price', 10, 3);
-add_filter('woocommerce_product_variation_get_regular_price', 'modify_variation_price', 10, 3);
-
-// Ensure sale price is used for variable products
-function modify_variable_product_price($price, $product) {
-    if ($product->is_type('variable')) {
-        $prices = $product->get_variation_prices(true);
-        
-        if (!empty($prices['sale_price'])) {
-            $price = min($prices['sale_price']);
-        } elseif (!empty($prices['price'])) {
-            $price = min($prices['price']);
-        }
-    }
-    
-    return $price;
-}
-add_filter('woocommerce_product_get_price', 'modify_variable_product_price', 10, 2);
