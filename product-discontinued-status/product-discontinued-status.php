@@ -1,75 +1,75 @@
 <?php
 /*
-Plugin Name: Refined WooCommerce Product and Variation Discontinued Status
-Description: Adds improved discontinued status for WooCommerce products and their variations.
-Version: 1.2
+Plugin Name: Refined WooCommerce Product and Variation Discounted Status
+Description: Adds improved discounted status for WooCommerce products and their variations.
+Version: 1.3
 Author: Stephen Huang
 */
 
-// Add Discontinued checkbox to main product
-function add_product_discontinued_field() {
+// Add Discounted checkbox to main product
+function add_product_discounted_field() {
     woocommerce_wp_checkbox(
         array(
-            'id' => '_discontinued',
-            'label' => 'Discontinued',
-            'description' => 'Check if this entire product is discontinued'
+            'id' => '_discounted',
+            'label' => 'Discounted',
+            'description' => 'Check if this entire product is discounted'
         )
     );
 }
-add_action('woocommerce_product_options_general_product_data', 'add_product_discontinued_field');
+add_action('woocommerce_product_options_general_product_data', 'add_product_discounted_field');
 
-// Save Discontinued status for main product
-function save_product_discontinued_field($product_id) {
-    $discontinued = isset($_POST['_discontinued']) ? 'yes' : 'no';
-    update_post_meta($product_id, '_discontinued', $discontinued);
+// Save Discounted status for main product
+function save_product_discounted_field($product_id) {
+    $discounted = isset($_POST['_discounted']) ? 'yes' : 'no';
+    update_post_meta($product_id, '_discounted', $discounted);
 }
-add_action('woocommerce_process_product_meta', 'save_product_discontinued_field');
+add_action('woocommerce_process_product_meta', 'save_product_discounted_field');
 
-// Add Discontinued checkbox to variation options
-function add_variation_discontinued_field($loop, $variation_data, $variation) {
+// Add Discounted checkbox to variation options
+function add_variation_discounted_field($loop, $variation_data, $variation) {
     woocommerce_wp_checkbox(
         array(
-            'id' => '_variation_discontinued[' . $variation->ID . ']',
-            'description' => ' Check if this variation is discontinued',
-            'value' => get_post_meta($variation->ID, '_variation_discontinued', true),
-            'class' => 'variation-discontinued-checkbox'
+            'id' => '_variation_discounted[' . $variation->ID . ']',
+            'description' => ' Check if this variation is discounted',
+            'value' => get_post_meta($variation->ID, '_variation_discounted', true),
+            'class' => 'variation-discounted-checkbox'
         )
     );
 }
-add_action('woocommerce_product_after_variable_attributes', 'add_variation_discontinued_field', 10, 3);
+add_action('woocommerce_product_after_variable_attributes', 'add_variation_discounted_field', 10, 3);
 
-// Save Discontinued status for variations
-function save_variation_discontinued_field($variation_id) {
-    $discontinued = isset($_POST['_variation_discontinued'][$variation_id]) ? 'yes' : 'no';
-    update_post_meta($variation_id, '_variation_discontinued', $discontinued);
+// Save Discounted status for variations
+function save_variation_discounted_field($variation_id) {
+    $discounted = isset($_POST['_variation_discounted'][$variation_id]) ? 'yes' : 'no';
+    update_post_meta($variation_id, '_variation_discounted', $discounted);
 }
-add_action('woocommerce_save_product_variation', 'save_variation_discontinued_field', 10, 1);
+add_action('woocommerce_save_product_variation', 'save_variation_discounted_field', 10, 1);
 
-// Modify the display_discontinued_status function
-function display_discontinued_status() {
+// Modify the display_discounted_status function
+function display_discounted_status() {
     global $product;
 
-    $product_discontinued = get_post_meta($product->get_id(), '_discontinued', true);
+    $product_discounted = get_post_meta($product->get_id(), '_discounted', true);
 
-    if ($product_discontinued === 'yes') {
-        echo '<div class="discontinued-banner">Product Discontinued - Limited Stock Available</div>';
+    if ($product_discounted === 'yes') {
+        echo '<div class="discounted-banner">Product Discounted - Limited Stock Available</div>';
     } elseif ($product->is_type('variable')) {
         $variations = $product->get_available_variations();
-        echo '<div class="discontinued-variations">';
+        echo '<div class="discounted-variations">';
         foreach ($variations as $variation) {
             $variation_id = $variation['variation_id'];
             $variation_obj = wc_get_product($variation_id);
-            $discontinued = get_post_meta($variation_id, '_variation_discontinued', true);
-            if ($discontinued === 'yes') {
+            $discounted = get_post_meta($variation_id, '_variation_discounted', true);
+            if ($discounted === 'yes') {
                 $attributes = $variation['attributes'];
                 foreach ($attributes as $key => $value) {
                     $taxonomy = str_replace('attribute_', '', $key);
                     $term = get_term_by('slug', $value, $taxonomy);
                     if ($term) {
                         $stock_message = ($variation_obj->managing_stock() && $variation_obj->get_stock_quantity() <= 0)
-                            ? 'Discontinued'
-                            : 'Discontinued - Limited Stock Available';
-                        echo '<span class="discontinued">' . $term->name . ': ' . $stock_message . '</span>';
+                            ? 'Discounted'
+                            : 'Discounted - Limited Stock Available';
+                        echo '<span class="discounted">' . $term->name . ': ' . $stock_message . '</span>';
                     }
                 }
             }
@@ -77,35 +77,35 @@ function display_discontinued_status() {
         echo '</div>';
     }
 }
-add_action('woocommerce_single_product_summary', 'display_discontinued_status', 5);
+add_action('woocommerce_single_product_summary', 'display_discounted_status', 5);
 
-// Modify the display_shop_discontinued_status function
-function display_shop_discontinued_status() {
+// Modify the display_shop_discounted_status function
+function display_shop_discounted_status() {
     global $product;
-    $product_discontinued = get_post_meta($product->get_id(), '_discontinued', true);
-    if ($product_discontinued === 'yes') {
-        echo '<span class="discontinued">Discontinued - Limited Stock</span>';
+    $product_discounted = get_post_meta($product->get_id(), '_discounted', true);
+    if ($product_discounted === 'yes') {
+        echo '<span class="discounted">Discounted - Limited Stock</span>';
     }
 }
-add_action('woocommerce_before_shop_loop_item_title', 'display_shop_discontinued_status');
+add_action('woocommerce_before_shop_loop_item_title', 'display_shop_discounted_status');
 
 // Replace the hide_discontinued_variations function with this new one
-function manage_discontinued_variations($is_available, $variation) {
-    $product_discontinued = get_post_meta($variation->get_parent_id(), '_discontinued', true);
-    $variation_discontinued = get_post_meta($variation->get_id(), '_variation_discontinued', true);
+function manage_discounted_variations($is_available, $variation) {
+    $product_discounted = get_post_meta($variation->get_parent_id(), '_discounted', true);
+    $variation_discounted = get_post_meta($variation->get_id(), '_variation_discounted', true);
     
-    if (($product_discontinued === 'yes' || $variation_discontinued === 'yes') && $variation->get_stock_quantity() <= 0) {
+    if (($product_discounted === 'yes' || $variation_discounted === 'yes') && $variation->get_stock_quantity() <= 0) {
         return false;
     }
     return $is_available;
 }
-add_filter('woocommerce_variation_is_active', 'manage_discontinued_variations', 10, 2);
+add_filter('woocommerce_variation_is_active', 'manage_discounted_variations', 10, 2);
 
-// Add a new function to modify the "Add to Cart" button text for discontinued products
+// Add a new function to modify the "Add to Cart" button text for discounted products
 function modify_add_to_cart_text($text, $product) {
-    $product_discontinued = get_post_meta($product->get_id(), '_discontinued', true);
+    $product_discounted = get_post_meta($product->get_id(), '_discounted', true);
     
-    if ($product_discontinued === 'yes' && $product->is_in_stock()) {
+    if ($product_discounted === 'yes' && $product->is_in_stock()) {
         return __('Add to Cart', 'woocommerce');
     }
     
@@ -114,32 +114,32 @@ function modify_add_to_cart_text($text, $product) {
 add_filter('woocommerce_product_single_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
 add_filter('woocommerce_product_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
 
-// Add styles for Discontinued label and banner
-function add_discontinued_styles() {
+// Update styles for Discounted label and banner
+function add_discounted_styles() {
     echo '<style>
-    .discontinued {
-        background-color: #ff0000;
-        color: #ffffff;
+    .discounted {
+        background-color: #90EE90;
+        color: #000000;
         padding: 5px 10px;
         border-radius: 3px;
         font-weight: bold;
         display: inline-block;
         margin-bottom: 5px;
     }
-    .discontinued-banner {
-        background-color: #ff0000;
-        color: #ffffff;
+    .discounted-banner {
+        background-color: #90EE90;
+        color: #000000;
         padding: 10px;
         text-align: center;
         font-weight: bold;
         margin-bottom: 20px;
     }
-    .discontinued-variations {
+    .discounted-variations {
         margin-bottom: 20px;
     }
-    .variation-discontinued-checkbox {
+    .variation-discounted-checkbox {
         margin-right: 10px;
     }
     </style>';
 }
-add_action('wp_head', 'add_discontinued_styles');
+add_action('wp_head', 'add_discounted_styles');
