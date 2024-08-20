@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: Refined WooCommerce Product and Variation Clearance Status
-Description: Adds improved clearance status for WooCommerce products and their variations.
-Version: 1.3
+Description: Adds improved clearance status for WooCommerce products and their variations. Includes On Sale Price Change
+Version: 2.0
 Author: Stephen Huang
 */
 
@@ -189,7 +189,7 @@ function custom_variation_price_html($price_html, $product, $variation) {
 add_filter('woocommerce_variation_price_html', 'custom_variation_price_html', 10, 3);
 add_filter('woocommerce_variation_sale_price_html', 'custom_variation_price_html', 10, 3);
 
-// Update styles to remove sale banner
+// Update styles to fix the orange line issue
 function add_clearance_and_sale_styles() {
     echo '<style>
     .clearance {
@@ -218,11 +218,22 @@ function add_clearance_and_sale_styles() {
     del {
         color: #777;
         text-decoration: line-through;
+        font-weight: normal;
+        margin-right: 5px;
     }
     ins {
         color: #dc3545;
         text-decoration: none;
         font-weight: bold;
+        background: none;
+    }
+    .price del::before,
+    .price del::after {
+        display: none !important;
+    }
+    .price ins::before,
+    .price ins::after {
+        display: none !important;
     }
     </style>';
 }
