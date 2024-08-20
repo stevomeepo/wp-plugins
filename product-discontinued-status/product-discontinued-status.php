@@ -108,6 +108,23 @@ function add_clearance_styles() {
     .variation-clearance-checkbox {
         margin-right: 10px;
     }
+    /* Remove orange line and adjust price display */
+    .price del {
+        text-decoration: line-through;
+        color: #777;
+        font-weight: normal;
+    }
+    .price ins {
+        text-decoration: none;
+        font-weight: bold;
+        color: #dc3545;
+    }
+    .price del::before,
+    .price del::after,
+    .price ins::before,
+    .price ins::after {
+        display: none !important;
+    }
     </style>';
 }
 add_action('wp_head', 'add_clearance_styles');
