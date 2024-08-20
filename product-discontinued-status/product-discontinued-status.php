@@ -161,13 +161,9 @@ function custom_price_html($price_html, $product) {
     
     if ($product_on_sale === 'yes') {
         $regular_price = $product->get_regular_price();
-        $sale_price = get_post_meta($product->get_id(), '_sale_price', true);
+        $sale_price = $product->get_price(); // This will now return the sale price
         
-        if ($product->is_type('variable')) {
-            $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
-        } else {
-            $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
-        }
+        $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
     }
     
     return $price_html;
@@ -180,7 +176,7 @@ function custom_variation_price_html($price_html, $product, $variation) {
     
     if ($variation_on_sale === 'yes') {
         $regular_price = $variation->get_regular_price();
-        $sale_price = get_post_meta($variation->get_id(), '_variation_sale_price', true);
+        $sale_price = $variation->get_price(); // This will now return the sale price
         $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
     }
     
@@ -263,3 +259,51 @@ function modify_add_to_cart_text($text, $product) {
 }
 add_filter('woocommerce_product_single_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
 add_filter('woocommerce_product_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
+
+// Modify the product price for simple products
+function modify_product_price($price, $product) {
+    $product_on_sale = get_post_meta($product->get_id(), '_on_sale', true);
+    
+    if ($product_on_sale === 'yes') {
+        $sale_price = get_post_meta($product->get_id(), '_sale_price', true);
+        if ($sale_price) {
+            return $sale_price;
+        }
+    }
+    
+    return $price;
+}
+add_filter('woocommerce_product_get_price', 'modify_product_price', 10, 2);
+add_filter('woocommerce_product_get_regular_price', 'modify_product_price', 10, 2);
+
+// Modify the variation price
+function modify_variation_price($price, $variation, $product) {
+    $variation_on_sale = get_post_meta($variation->get_id(), '_variation_on_sale', true);
+    
+    if ($variation_on_sale === 'yes') {
+        $sale_price = get_post_meta($variation->get_id(), '_variation_sale_price', true);
+        if ($sale_price) {
+            return $sale_price;
+        }
+    }
+    
+    return $price;
+}
+add_filter('woocommerce_product_variation_get_price', 'modify_variation_price', 10, 3);
+add_filter('woocommerce_product_variation_get_regular_price', 'modify_variation_price', 10, 3);
+
+// Ensure sale price is used for variable products
+function modify_variable_product_price($price, $product) {
+    if ($product->is_type('variable')) {
+        $prices = $product->get_variation_prices(true);
+        
+        if (!empty($prices['sale_price'])) {
+            $price = min($prices['sale_price']);
+        } elseif (!empty($prices['price'])) {
+            $price = min($prices['price']);
+        }
+    }
+    
+    return $price;
+}
+add_filter('woocommerce_product_get_price', 'modify_variable_product_price', 10, 2);
