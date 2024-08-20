@@ -118,21 +118,14 @@ function save_variation_sale_field($variation_id) {
 }
 add_action('woocommerce_save_product_variation', 'save_variation_sale_field', 10, 1);
 
-// Modify the display_clearance_status function to include sale information
+// Remove the sale banner from the display_clearance_and_sale_status function
 function display_clearance_and_sale_status() {
     global $product;
 
     $product_clearance = get_post_meta($product->get_id(), '_clearance', true);
-    $product_on_sale = get_post_meta($product->get_id(), '_on_sale', true);
 
     if ($product_clearance === 'yes') {
         echo '<div class="clearance-banner">Product on Clearance - Limited Stock Available</div>';
-    }
-
-    if ($product_on_sale === 'yes') {
-        $regular_price = $product->get_regular_price();
-        $sale_price = get_post_meta($product->get_id(), '_sale_price', true);
-        echo '<div class="sale-banner">On Sale: <del>' . wc_price($regular_price) . '</del> ' . wc_price($sale_price) . '</div>';
     }
 
     if ($product->is_type('variable')) {
@@ -142,25 +135,17 @@ function display_clearance_and_sale_status() {
             $variation_id = $variation['variation_id'];
             $variation_obj = wc_get_product($variation_id);
             $clearance = get_post_meta($variation_id, '_variation_clearance', true);
-            $on_sale = get_post_meta($variation_id, '_variation_on_sale', true);
             
-            if ($clearance === 'yes' || $on_sale === 'yes') {
+            if ($clearance === 'yes') {
                 $attributes = $variation['attributes'];
                 foreach ($attributes as $key => $value) {
                     $taxonomy = str_replace('attribute_', '', $key);
                     $term = get_term_by('slug', $value, $taxonomy);
                     if ($term) {
-                        if ($clearance === 'yes') {
-                            $stock_message = ($variation_obj->managing_stock() && $variation_obj->get_stock_quantity() <= 0)
-                                ? 'Clearance'
-                                : 'Clearance - Limited Stock Available';
-                            echo '<span class="clearance">' . $term->name . ': ' . $stock_message . '</span>';
-                        }
-                        if ($on_sale === 'yes') {
-                            $regular_price = $variation_obj->get_regular_price();
-                            $sale_price = get_post_meta($variation_id, '_variation_sale_price', true);
-                            echo '<span class="sale">' . $term->name . ': <del>' . wc_price($regular_price) . '</del> ' . wc_price($sale_price) . '</span>';
-                        }
+                        $stock_message = ($variation_obj->managing_stock() && $variation_obj->get_stock_quantity() <= 0)
+                            ? 'Clearance'
+                            : 'Clearance - Limited Stock Available';
+                        echo '<span class="clearance">' . $term->name . ': ' . $stock_message . '</span>';
                     }
                 }
             }
@@ -170,15 +155,78 @@ function display_clearance_and_sale_status() {
 }
 add_action('woocommerce_single_product_summary', 'display_clearance_and_sale_status', 5);
 
-// Modify the display_shop_clearance_status function
-function display_shop_clearance_status() {
-    global $product;
-    $product_clearance = get_post_meta($product->get_id(), '_clearance', true);
-    if ($product_clearance === 'yes') {
-        echo '<span class="clearance">Clearance - Limited Stock</span>';
+// Add a filter to modify the product price html
+function custom_price_html($price_html, $product) {
+    $product_on_sale = get_post_meta($product->get_id(), '_on_sale', true);
+    
+    if ($product_on_sale === 'yes') {
+        $regular_price = $product->get_regular_price();
+        $sale_price = get_post_meta($product->get_id(), '_sale_price', true);
+        
+        if ($product->is_type('variable')) {
+            $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
+        } else {
+            $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
+        }
     }
+    
+    return $price_html;
 }
-add_action('woocommerce_before_shop_loop_item_title', 'display_shop_clearance_status');
+add_filter('woocommerce_get_price_html', 'custom_price_html', 10, 2);
+
+// Add a filter to modify the variation price html
+function custom_variation_price_html($price_html, $product, $variation) {
+    $variation_on_sale = get_post_meta($variation->get_id(), '_variation_on_sale', true);
+    
+    if ($variation_on_sale === 'yes') {
+        $regular_price = $variation->get_regular_price();
+        $sale_price = get_post_meta($variation->get_id(), '_variation_sale_price', true);
+        $price_html = '<del>' . wc_price($regular_price) . '</del> <ins>' . wc_price($sale_price) . '</ins>';
+    }
+    
+    return $price_html;
+}
+add_filter('woocommerce_variation_price_html', 'custom_variation_price_html', 10, 3);
+add_filter('woocommerce_variation_sale_price_html', 'custom_variation_price_html', 10, 3);
+
+// Update styles to remove sale banner
+function add_clearance_and_sale_styles() {
+    echo '<style>
+    .clearance {
+        background-color: #90EE90;
+        color: #000000;
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 5px;
+    }
+    .clearance-banner {
+        background-color: #90EE90;
+        color: #000000;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .clearance-sale-variations {
+        margin-bottom: 20px;
+    }
+    .variation-clearance-checkbox, .variation-sale-checkbox {
+        margin-right: 10px;
+    }
+    del {
+        color: #777;
+        text-decoration: line-through;
+    }
+    ins {
+        color: #dc3545;
+        text-decoration: none;
+        font-weight: bold;
+    }
+    </style>';
+}
+add_action('wp_head', 'add_clearance_and_sale_styles');
 
 // Replace the hide_discontinued_variations function with this new one
 function manage_clearance_variations($is_available, $variation) {
@@ -204,39 +252,3 @@ function modify_add_to_cart_text($text, $product) {
 }
 add_filter('woocommerce_product_single_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
 add_filter('woocommerce_product_add_to_cart_text', 'modify_add_to_cart_text', 10, 2);
-
-// Update styles to include sale banner and labels
-function add_clearance_and_sale_styles() {
-    echo '<style>
-    .clearance, .sale {
-        background-color: #90EE90;
-        color: #000000;
-        padding: 5px 10px;
-        border-radius: 3px;
-        font-weight: bold;
-        display: inline-block;
-        margin-bottom: 5px;
-    }
-    .sale {
-        background-color: #FF6347;
-    }
-    .clearance-banner, .sale-banner {
-        background-color: #90EE90;
-        color: #000000;
-        padding: 10px;
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 20px;
-    }
-    .sale-banner {
-        background-color: #FF6347;
-    }
-    .clearance-sale-variations {
-        margin-bottom: 20px;
-    }
-    .variation-clearance-checkbox, .variation-sale-checkbox {
-        margin-right: 10px;
-    }
-    </style>';
-}
-add_action('wp_head', 'add_clearance_and_sale_styles');
